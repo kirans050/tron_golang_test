@@ -7,14 +7,14 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 )
 
-func ActivateNewAccount(conn *client.GrpcClient, newAddress, ownerAddress, privateKey string) {
-	tx, err := conn.CreateAccount(ownerAddress, newAddress)
+func ActivateNewAccount(conn *client.GrpcClient, clientAccAddress, merchantAccAddress, merchantAccPrivate string) {
+	tx, err := conn.CreateAccount(merchantAccAddress, clientAccAddress)
 	if err != nil {
 		fmt.Println("error activating account", err)
 		return
 	}
 
-	tx, err = generateSignature(tx, privateKey)
+	tx, err = generateSignature(tx, merchantAccPrivate)
 	if err != nil {
 		fmt.Println("error generating signature", err)
 		return

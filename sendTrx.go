@@ -7,8 +7,9 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 )
 
-func SendTrx(conn *client.GrpcClient, toAddress, fromAddress, privateKey string) {
-	tx, err := conn.Transfer(fromAddress, toAddress, 5)
+func SendTrx(conn *client.GrpcClient, clientAccAddress, fromAddress, privateKey string, totalTrxNeeded float32) {
+	fmt.Println("int64(totalTrxNeeded)", int64(totalTrxNeeded), totalTrxNeeded)
+	tx, err := conn.Transfer(fromAddress, clientAccAddress, int64(totalTrxNeeded*1000000))
 	if err != nil {
 		fmt.Println("error creating transfer", err)
 		return

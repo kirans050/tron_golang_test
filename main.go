@@ -20,11 +20,17 @@ func main() {
 	}
 	// toAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
 
-	// fromAddress := "TFXGCn4QF5zbshzHUTkK9j6yKyDsQbdukZ"
-	// // // // // address := "TXLL89KocCLcoDM7Co38LSqAqwHUzT9VuM"
-	// contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
-	// privateKey := "1ecbf87330d1b636811c4eac678f52813bea326818a90d3de226015f51ad3d34"
+	// fromAddress := "TVJfeB4se3BHzL5Vr6Fya94K3MoWpf6WRU"
+	// // // // // // address := "TXLL89KocCLcoDM7Co38LSqAqwHUzT9VuM"
+	// privateKey := "428f90cc7476f408280379b9349ea1d514b244ea92c57bdc753deafb7e072fd8"
 	// privateKey := "fd833288ba9fc8817c0b086109a9a63bf9e06f419166de275876914c85095ed5"
+
+	contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
+	clientAccPrivate := "125da0f330a2ce0410f0dffac23c2956aedeb2c1ec74b1cb6bce6decb6f0e704"
+	clientAccAddress := "TFSaboWQCm7XC9Cjznn1fnLXVY4tLFKXBw"
+
+	merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
+	merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
 
 	// {
 	// 	"privateKey": "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42",
@@ -33,12 +39,12 @@ func main() {
 	//   }
 
 	// SendTrx(conn, toAddress, fromAddress, privateKey)
-	// TokenTransfer(conn, fromAddress, contract, toAddress, privateKey)
+	TokenTransfer(conn, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate)
 
 	// EstimateTransactionEnergy(conn, fromAddress, contract, toAddress)
 	// serverFunction()
 
-	// ActivateNewAccount(conn, fromAddress, toAddress, privateKey)
+	// ActivateNewAccount(conn, clientAccAddress, merchantAccAddress, merchantAccPrivate)
 }
 
 func serverFunction() {

@@ -11,6 +11,7 @@ import (
 type ResourceBalanceStruct struct {
 	BandwidthBalance int64 `json:"bandWidthBalance"`
 	EnergyBalance    int64 `json:"energyBalance"`
+	FreeNetLimit     int64 `json:"freeNetLimit"`
 }
 
 func GetAccountResourceHandler(conn *client.GrpcClient, fromAddress string) (ResourceBalanceStruct, error) {
@@ -19,13 +20,14 @@ func GetAccountResourceHandler(conn *client.GrpcClient, fromAddress string) (Res
 		fmt.Println("error getting resource", err)
 		return ResourceBalanceStruct{}, err
 	}
-	fmt.Println("resource", resource)
+	fmt.Println("resource", resource.FreeNetLimit)
 	bandwidthBalance := resource.FreeNetLimit - resource.FreeNetUsed
 	EnergyBalance := resource.EnergyLimit - resource.EnergyUsed
 	fmt.Println("resource", bandwidthBalance, EnergyBalance)
 	return ResourceBalanceStruct{
 		BandwidthBalance: bandwidthBalance,
 		EnergyBalance:    EnergyBalance,
+		FreeNetLimit:     resource.FreeNetLimit,
 	}, nil
 }
 

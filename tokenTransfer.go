@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -10,8 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TokenTransfer(conn *client.GrpcClient, fromAddress, contract, toAddress, privateKey string) {
-	balance, err := conn.TRC20ContractBalance(fromAddress, contract)
+func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string) {
+	balance, err := conn.TRC20ContractBalance(clientAccAddress, contract)
 	if err != nil {
 		fmt.Println("error checking token balance", err)
 		return
@@ -19,17 +20,17 @@ func TokenTransfer(conn *client.GrpcClient, fromAddress, contract, toAddress, pr
 	fmt.Println("balance", balance)
 	if balance.Cmp(big.NewInt(0)) <= 0 {
 		fmt.Println("insufficent token balance")
-		// return
+		return
 	}
 
-	var bal = big.NewInt(10)
-	tx, err := conn.TRC20Send(fromAddress, toAddress, contract, bal, 10000000)
+	// var bal = big.NewInt(10)
+	tx, err := conn.TRC20Send(clientAccAddress, merchantAccAddress, contract, balance, 10000000)
 	if err != nil {
 		fmt.Println("error generating transaction", err)
 		return
 	}
 
-	tx, err = generateSignature(tx, privateKey)
+	tx, err = generateSignature(tx, clientAccPrivate)
 	if err != nil {
 		fmt.Println("error generating signature", err)
 		return
@@ -37,10 +38,14 @@ func TokenTransfer(conn *client.GrpcClient, fromAddress, contract, toAddress, pr
 	totalBytes := calculateBytes(tx)
 	fmt.Println("totolBytes", totalBytes)
 
-	resource, err := GetAccountResourceHandler(conn, fromAddress)
+	resource, err := GetAccountResourceHandler(conn, clientAccAddress)
 	if err != nil {
 		fmt.Println("unable to get the account resource")
 		return
+	}
+
+	if resource.FreeNetLimit == 0 {
+
 	}
 
 	var totalTrxNeeded float32 = 0
@@ -49,9 +54,10 @@ func TokenTransfer(conn *client.GrpcClient, fromAddress, contract, toAddress, pr
 		// extraBW := int64(totalBytes) - resource.BandwidthBalance
 		burnTrx := (float32(extraBW) * 1000) / 1000000
 		totalTrxNeeded += burnTrx
+		fmt.Println("bandwidth balance", burnTrx)
 	}
 
-	result, err := EstimateTransactionEnergy(conn, fromAddress, contract, toAddress)
+	result, err := EstimateTransactionEnergy(conn, clientAccAddress, contract, merchantAccAddress)
 	if err != nil {
 		fmt.Println("error estimating transaction energy", err)
 		return
@@ -63,19 +69,23 @@ func TokenTransfer(conn *client.GrpcClient, fromAddress, contract, toAddress, pr
 	}
 	energyRequierd := result.EnergyRequired
 	if resource.EnergyBalance < energyRequierd {
-		burnTrx := (float32(13091) * 210) / 1000000
+		burnTrx := (float32(energyRequierd) * 210) / 1000000
 		totalTrxNeeded += burnTrx
+		fmt.Println("energy balance", burnTrx)
 	}
 	// return
 	fmt.Println("totalTrxNeeded", totalTrxNeeded)
 
-	// broadCastResult, err := BroadcastTransaction(conn, tx)
-	// if err != nil {
-	// 	fmt.Println("error broadcasting transaction", err)
-	// 	return
-	// }
+	// fetch account balance if trx is less then only transfer
+	// SendTrx(conn, clientAccAddress, merchantAccAddress, merchantAccPrivate, totalTrxNeeded)
 
-	// fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
+	broadCastResult, err := BroadcastTransaction(conn, tx)
+	if err != nil {
+		fmt.Println("error broadcasting transaction", err)
+		return
+	}
+
+	fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
 }
 
 func calculateBytes(tx *api.TransactionExtention) int {
