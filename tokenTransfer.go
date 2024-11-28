@@ -72,19 +72,13 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 		fmt.Println("bandwidth balance", burnTrx)
 	}
 
-	result, err := EstimateTransactionEnergy(conn, clientAccAddress, contract, merchantAccAddress)
+	energyRequierd, err := EstimateTransactionEnergy(conn, clientAccAddress, contract, merchantAccAddress, balance)
 	if err != nil {
 		fmt.Println("error estimating transaction energy", err)
 		return
 	}
-	fmt.Println("result", result)
-	if !result.Result.Result {
-		fmt.Println("unable to fetch transaction energy", err)
-		return
-	}
-	energyRequierd := result.EnergyRequired
 	if resource.EnergyBalance < energyRequierd {
-		burnTrx := (float64(13091) * 210) / 1000000
+		burnTrx := (float64(energyRequierd) * 210) / 1000000
 		totalTrxNeeded += burnTrx
 		fmt.Println("energy balance", burnTrx)
 	}
