@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/mr-tron/base58"
@@ -32,7 +33,7 @@ type AddressTable struct {
 	PrivateKey       string   `json:"privateKey"`
 	AddressKey       string   `json:"address"`
 	Amount           float64  `json:"amount"`
-	TimeStamp        int      `json:"timestamp"`
+	TimeStamp        int64    `json:"timestamp"`
 	Token            *string  `json:"token"`
 	OrderId          *float64 `json:"order_id"`
 	CallBack         string   `json:"callback"`
@@ -174,11 +175,25 @@ func generateAddressApi(db *sql.DB) http.HandlerFunc {
 		}
 		_, err = insertTableData(db, keys)
 		if err != nil {
-			http.Error(w, "failed to insert data", http.StatusInternalServerError)
+			http.Error(w, "failed to create data", http.StatusInternalServerError)
 			return
 		}
+		responseData := AddressTable{
+			AddressKey:       keys.Address,
+			PublicKey:        keys.PublicKey,
+			PrivateKey:       keys.PrivateKey,
+			Amount:           0,
+			TimeStamp:        time.Now().Unix(),
+			Token:            new(string),
+			OrderId:          new(float64),
+			CallBack:         "",
+			ReceivingAddress: "",
+			Contract:         "",
+		}
+		*responseData.Token = "" // Dereference and set the value
+		*responseData.OrderId = 0.0
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(keys)
+		json.NewEncoder(w).Encode(responseData)
 	}
 }
 
