@@ -32,7 +32,7 @@ func SendTrx(conn *client.GrpcClient, clientAccAddress, merchantAccAddress, merc
 		return "", err
 	}
 
-	fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
+	fmt.Println("trx transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
 
 	transactionResult, err := conn.GetTransactionByID(hex.EncodeToString(tx.Txid))
 	if err != nil {
