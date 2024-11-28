@@ -1,17 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"google.golang.org/protobuf/proto"
 )
 
-func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string) {
+func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string, id int) {
 	balance, err := conn.TRC20ContractBalance(clientAccAddress, contract)
 	if err != nil {
 		fmt.Println("error checking token balance", err)
@@ -99,15 +101,47 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 			return
 		}
 		fmt.Println("trx send to the client address")
+
+		updateStmt := `UPDATE addresses SET TrxTimeStamp = strftime('%s', 'now') WHERE id = ?;`
+		res, err := db.Exec(updateStmt, id) // Replace 1 with the actual id
+		if err != nil {
+			// log.Fatal(err)
+			fmt.Println("error updating the trx time stamp", err)
+			return
+		}
+		fmt.Println("result", res)
 	}
 
-	broadCastResult, err := BroadcastTransaction(conn, tx)
+	var trxTimeStamp int64
+	queryStmt := `SELECT TrxTimeStamp FROM addresses WHERE id = ?;`
+	err = db.QueryRow(queryStmt, id).Scan(&trxTimeStamp)
 	if err != nil {
-		fmt.Println("error broadcasting transaction", err)
+		fmt.Println("error getting the trx time stamp", err)
 		return
 	}
 
-	fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
+	broadCastTransaction := false
+	if trxTimeStamp != 0 {
+		fmt.Println("trx", trxTimeStamp)
+		currentTime := time.Now().Unix()
+		timeDifference := currentTime - trxTimeStamp
+		if timeDifference > 30 {
+			broadCastTransaction = true
+		}
+	} else {
+		broadCastTransaction = true
+	}
+
+	if broadCastTransaction {
+		broadCastResult, err := BroadcastTransaction(conn, tx)
+		if err != nil {
+			fmt.Println("error broadcasting transaction", err)
+			return
+		}
+
+		fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
+	}
+
 }
 
 func calculateBytes(tx *api.TransactionExtention) (int, error) {

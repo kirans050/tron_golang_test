@@ -39,6 +39,7 @@ type AddressTable struct {
 	CallBack         string   `json:"callback"`
 	ReceivingAddress string   `json:"reciving_address"`
 	Contract         string   `json:"contract"`
+	TrxTimeStamp     int64    `json:"trxTimeStamp"`
 }
 
 func generateAddressHandler() (keysStruct, error) {
@@ -117,7 +118,7 @@ func getTableData(db *sql.DB) ([]AddressTable, error) {
 			&Address.OrderId,
 			&Address.CallBack,
 			&Address.ReceivingAddress,
-			&Address.Contract)
+			&Address.Contract, &Address.TrxTimeStamp)
 		if err != nil {
 			return nil, err
 		}
@@ -145,8 +146,8 @@ func createTable(db *sql.DB) {
 		order_id INTEGER ,
 		callback TEXT TEXT DEFAULT "",
 		reciving_address TEXT DEFAULT "",
-		contract TEXT DEFAULT ""
-
+		contract TEXT DEFAULT "",
+		TrxTimeStamp INTEGER DEFAULT 0
  	);`
 	_, err := db.Exec(sqlStmt)
 	if err != nil {
@@ -189,6 +190,7 @@ func generateAddressApi(db *sql.DB) http.HandlerFunc {
 			CallBack:         "",
 			ReceivingAddress: "",
 			Contract:         "",
+			TrxTimeStamp:     0,
 		}
 		*responseData.Token = "" // Dereference and set the value
 		*responseData.OrderId = 0.0
@@ -267,7 +269,7 @@ func clientToMerchant(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
 		merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
 		merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
 		for i := 0; i < len(users); i++ {
-			TokenTransfer(conn, users[i].AddressKey, contract, merchantAccAddress, users[i].PrivateKey, merchantAccPrivate)
+			TokenTransfer(db, conn, users[i].AddressKey, contract, merchantAccAddress, users[i].PrivateKey, merchantAccPrivate, users[i].Id)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

@@ -18,24 +18,14 @@ func main() {
 		fmt.Println("error connecting", err)
 		return
 	}
-	// contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
-	// clientAccPrivate := "b835fe9085921f2339aaf868dd97138c9ae7adb785e28d93b3fa7a9d3205fd7c"
-	// clientAccAddress := "THQm92TBdeTrkGHgkkreb37ugWgxUFtriF"
+	// serverFunction(conn)
 
-	// merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
-	// merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
-
-	// TokenTransfer(conn, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate)
-
-	// EstimateTransactionEnergy(conn, fromAddress, contract, toAddress)
+	db, err := sql.Open("sqlite3", "./example.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	serverFunction(conn)
-
-	// ActivateNewAccount(conn, clientAccAddress, merchantAccAddress, merchantAccPrivate)
-
-}
-
-func StartTransferHandler() {
-
 }
 
 func serverFunction(conn *client.GrpcClient) {
