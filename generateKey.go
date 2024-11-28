@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/mr-tron/base58"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -25,18 +27,17 @@ type keysStruct struct {
 }
 
 type AddressTable struct {
-	Id               int     `json:"id"`
-	PublicKey        string  `json:"publicKey"`
-	PrivateKey       string  `json:"privateKey"`
-	AddressKey       string  `json:"address"`
-	Amount           float64 `json:"amount"`
-	TimeStamp        int     `json:"timestamp"`
-	Token            *string `json:"token"`
-	CallbacksCount   float64 `json:"callbacks_count"`
-	OrderId          float64 `json:"order_id"`
-	CallBack         string  `json:"callback"`
-	ReceivingAddress string  `json:"reciving_address"`
-	Contract         string  `json:"contract"`
+	Id               int      `json:"id"`
+	PublicKey        string   `json:"publicKey"`
+	PrivateKey       string   `json:"privateKey"`
+	AddressKey       string   `json:"address"`
+	Amount           float64  `json:"amount"`
+	TimeStamp        int      `json:"timestamp"`
+	Token            *string  `json:"token"`
+	OrderId          *float64 `json:"order_id"`
+	CallBack         string   `json:"callback"`
+	ReceivingAddress string   `json:"reciving_address"`
+	Contract         string   `json:"contract"`
 }
 
 func generateAddressHandler() (keysStruct, error) {
@@ -104,7 +105,18 @@ func getTableData(db *sql.DB) ([]AddressTable, error) {
 	var AddressSlice []AddressTable
 	for rows.Next() {
 		var Address AddressTable
-		err := rows.Scan(&Address.Id, &Address.PublicKey, &Address.PrivateKey, &Address.AddressKey, &Address.Amount, &Address.TimeStamp, &Address.Token, &Address.CallbacksCount, &Address.OrderId, &Address.CallBack, &Address.ReceivingAddress, &Address.Contract)
+		err := rows.Scan(
+			&Address.Id,
+			&Address.PublicKey,
+			&Address.PrivateKey,
+			&Address.AddressKey,
+			&Address.Amount,
+			&Address.TimeStamp,
+			&Address.Token,
+			&Address.OrderId,
+			&Address.CallBack,
+			&Address.ReceivingAddress,
+			&Address.Contract)
 		if err != nil {
 			return nil, err
 		}
@@ -129,8 +141,8 @@ func createTable(db *sql.DB) {
 		amount INTEGER DEFAULT 0.0,
 		timestamp INTEGER DEFAULT (strftime('%s', 'now')),
 		token TEXT DEFAULT "",
-		callback TEXT TEXT DEFAULT "",
 		order_id INTEGER ,
+		callback TEXT TEXT DEFAULT "",
 		reciving_address TEXT DEFAULT "",
 		contract TEXT DEFAULT ""
 
@@ -178,6 +190,102 @@ func getAllAddressApi(db *sql.DB) http.HandlerFunc {
 			log.Fatal("error", err)
 			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
 			return
+		}
+
+		//  Convert the users slice to JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	}
+}
+
+func transferTokenFromMerchant(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//  Fetch users from the database
+		users, err := getTableData(db)
+		if err != nil {
+			log.Fatal("error", err)
+			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+			return
+		}
+		contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
+		merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
+		merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
+		for i := 0; i < len(users); i++ {
+			merchantToClientToken(conn, users[i].AddressKey, contract, merchantAccAddress, users[i].PrivateKey, merchantAccPrivate)
+		}
+
+		//  Convert the users slice to JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	}
+}
+func activateAccount(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//  Fetch users from the database
+		users, err := getTableData(db)
+		if err != nil {
+			log.Fatal("error", err)
+			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+			return
+		}
+		merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
+		merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
+		for i := 0; i < len(users); i++ {
+			ActivateNewAccount(conn, users[i].AddressKey, merchantAccAddress, merchantAccPrivate)
+		}
+
+		//  Convert the users slice to JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	}
+}
+func clientToMerchant(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//  Fetch users from the database
+		users, err := getTableData(db)
+		if err != nil {
+			log.Fatal("error", err)
+			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+			return
+		}
+		contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
+		merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
+		merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
+		for i := 0; i < len(users); i++ {
+			TokenTransfer(conn, users[i].AddressKey, contract, merchantAccAddress, users[i].PrivateKey, merchantAccPrivate)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	}
+}
+
+func getAllAccountBalance(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//  Fetch users from the database
+		users, err := getTableData(db)
+		if err != nil {
+			log.Fatal("error", err)
+			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+			return
+		}
+		contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
+		for i := 0; i < len(users); i++ {
+
+			var trc20Balance = big.NewInt(0)
+			var trxBalance float64 = 0
+			token, err := conn.TRC20ContractBalance(users[i].AddressKey, contract)
+			if err != nil {
+				fmt.Println("error getting token balance", users[i].Id, users[i].AddressKey)
+				token = trc20Balance
+			}
+			trx, err := GetAccountBalance(conn, users[i].AddressKey)
+			if err != nil {
+				fmt.Println("error getting trx balance", users[i].Id, users[i].AddressKey)
+				trx = trxBalance
+			}
+
+			fmt.Println("balance", users[i].AddressKey, token, "--", trx)
 		}
 
 		//  Convert the users slice to JSON

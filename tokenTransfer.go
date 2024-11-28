@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
+	"math"
 	"math/big"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
@@ -23,6 +23,22 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 		return
 	}
 
+	// balance := big.NewInt(125000000)
+
+	var userAccBalance float64 = 0
+	accBalance, err := GetAccountBalance(conn, clientAccAddress)
+	if err != nil {
+		if err.Error() == "account not found" {
+			userAccBalance = 0
+		} else {
+			fmt.Println("error getting balance", err)
+			return
+		}
+	} else {
+		userAccBalance = float64(accBalance)
+	}
+	fmt.Println("acc", accBalance)
+
 	// var bal = big.NewInt(10)
 	tx, err := conn.TRC20Send(clientAccAddress, merchantAccAddress, contract, balance, 10000000)
 	if err != nil {
@@ -35,7 +51,11 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 		fmt.Println("error generating signature", err)
 		return
 	}
-	totalBytes := calculateBytes(tx)
+	totalBytes, err := calculateBytes(tx)
+	if err != nil {
+		fmt.Println("error calculating bytes", err)
+		return
+	}
 	fmt.Println("totolBytes", totalBytes)
 
 	resource, err := GetAccountResourceHandler(conn, clientAccAddress)
@@ -44,15 +64,10 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 		return
 	}
 
-	if resource.FreeNetLimit == 0 {
-
-	}
-
-	var totalTrxNeeded float32 = 0
+	var totalTrxNeeded float64 = 0
 	if resource.BandwidthBalance < int64(totalBytes) {
 		extraBW := int64(totalBytes)
-		// extraBW := int64(totalBytes) - resource.BandwidthBalance
-		burnTrx := (float32(extraBW) * 1000) / 1000000
+		burnTrx := (float64(extraBW) * 1000) / 1000000
 		totalTrxNeeded += burnTrx
 		fmt.Println("bandwidth balance", burnTrx)
 	}
@@ -69,15 +84,28 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 	}
 	energyRequierd := result.EnergyRequired
 	if resource.EnergyBalance < energyRequierd {
-		burnTrx := (float32(energyRequierd) * 210) / 1000000
+		burnTrx := (float64(13091) * 210) / 1000000
 		totalTrxNeeded += burnTrx
 		fmt.Println("energy balance", burnTrx)
 	}
 	// return
-	fmt.Println("totalTrxNeeded", totalTrxNeeded)
+	totalTrxNeeded = math.Round(totalTrxNeeded*100000) / 100000
+	fmt.Println("totalTrxNeeded", totalTrxNeeded, userAccBalance)
 
-	// fetch account balance if trx is less then only transfer
-	// SendTrx(conn, clientAccAddress, merchantAccAddress, merchantAccPrivate, totalTrxNeeded)
+	if userAccBalance < totalTrxNeeded {
+		remainigBal := totalTrxNeeded - userAccBalance
+		remainigBal = math.Round(remainigBal*100000) / 100000
+		result, err := SendTrx(conn, clientAccAddress, merchantAccAddress, merchantAccPrivate, remainigBal)
+		if err != nil {
+			fmt.Println("error sending trx", err)
+			return
+		}
+		if result == "failed" {
+			fmt.Println("failed to send trx")
+			return
+		}
+		fmt.Println("trx send to the client address")
+	}
 
 	broadCastResult, err := BroadcastTransaction(conn, tx)
 	if err != nil {
@@ -88,7 +116,7 @@ func TokenTransfer(conn *client.GrpcClient, clientAccAddress, contract, merchant
 	fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
 }
 
-func calculateBytes(tx *api.TransactionExtention) int {
+func calculateBytes(tx *api.TransactionExtention) (int, error) {
 	var DATA_HEX_PROTOBUF_EXTRA = 3
 	var MAX_RESULT_SIZE_IN_TX = 64
 	var A_SIGNATURE = 67
@@ -98,7 +126,8 @@ func calculateBytes(tx *api.TransactionExtention) int {
 
 	rawDataBytes, err := proto.Marshal(rawData)
 	if err != nil {
-		log.Fatalf("Failed to serialize raw data: %v", err)
+		fmt.Println("Failed to serialize raw data: ", err)
+		return 0, err
 	}
 
 	// Calculate base length
@@ -108,7 +137,5 @@ func calculateBytes(tx *api.TransactionExtention) int {
 	for range signatureList {
 		length += A_SIGNATURE
 	}
-
-	fmt.Println("lenght", length)
-	return length
+	return length, nil
 }

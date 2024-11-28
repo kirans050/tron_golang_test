@@ -14,13 +14,21 @@ type ResourceBalanceStruct struct {
 	FreeNetLimit     int64 `json:"freeNetLimit"`
 }
 
-func GetAccountResourceHandler(conn *client.GrpcClient, fromAddress string) (ResourceBalanceStruct, error) {
-	resource, err := conn.GetAccountResource(fromAddress)
+func GetAccountBalance(conn *client.GrpcClient, clientAccAddress string) (float64, error) {
+	details, err := conn.GetAccount(clientAccAddress)
+	if err != nil {
+		return 0, err
+	}
+	result := float64(details.Balance) / 1000000
+	return result, nil
+}
+
+func GetAccountResourceHandler(conn *client.GrpcClient, clientAccAddress string) (ResourceBalanceStruct, error) {
+	resource, err := conn.GetAccountResource(clientAccAddress)
 	if err != nil {
 		fmt.Println("error getting resource", err)
 		return ResourceBalanceStruct{}, err
 	}
-	fmt.Println("resource", resource.FreeNetLimit)
 	bandwidthBalance := resource.FreeNetLimit - resource.FreeNetUsed
 	EnergyBalance := resource.EnergyLimit - resource.EnergyUsed
 	fmt.Println("resource", bandwidthBalance, EnergyBalance)
@@ -31,15 +39,15 @@ func GetAccountResourceHandler(conn *client.GrpcClient, fromAddress string) (Res
 	}, nil
 }
 
-func EstimateTransactionEnergy(conn *client.GrpcClient, fromAddress, contract, toAddress string) (*api.EstimateEnergyMessage, error) {
+func EstimateTransactionEnergy(conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress string) (*api.EstimateEnergyMessage, error) {
 
 	jsonString := fmt.Sprintf(`[{
 		"address":"%s"
 	},{
 		"uint256":"%s"
-	}]`, toAddress, big.NewInt(10))
+	}]`, merchantAccAddress, big.NewInt(10))
 	resourceEstimate, err := conn.EstimateEnergy(
-		fromAddress,
+		clientAccAddress,
 		contract,
 		"transfer(address,uint256)",
 		jsonString,
