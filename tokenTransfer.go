@@ -28,18 +28,16 @@ func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contra
 	// balance := big.NewInt(125000000)
 
 	var userAccBalance float64 = 0
+	accountActivated := true
 	accBalance, err := GetAccountBalance(conn, clientAccAddress)
 	if err != nil {
-		if err.Error() == "account not found" {
-			userAccBalance = 0
-		} else {
-			fmt.Println("error getting balance", err)
-			return
-		}
+		fmt.Println("error getting balance", err)
+		userAccBalance = 0
+		accountActivated = false
 	} else {
 		userAccBalance = float64(accBalance)
 	}
-	fmt.Println("acc", accBalance)
+	fmt.Println("acc accountActivated", accBalance, accountActivated)
 
 	// var bal = big.NewInt(10)
 	tx, err := conn.TRC20Send(clientAccAddress, merchantAccAddress, contract, balance, 10000000)
@@ -72,6 +70,9 @@ func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contra
 		burnTrx := (float64(extraBW) * 1000) / 1000000
 		totalTrxNeeded += burnTrx
 		fmt.Println("bandwidth balance", burnTrx)
+		if !accountActivated {
+			totalTrxNeeded = 0
+		}
 	}
 
 	energyRequierd, err := EstimateTransactionEnergy(conn, clientAccAddress, contract, merchantAccAddress, balance)
