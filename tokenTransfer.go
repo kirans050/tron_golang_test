@@ -128,8 +128,6 @@ func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contra
 		if timeDifference > 30 {
 			broadCastTransaction = true
 		}
-	} else {
-		broadCastTransaction = true
 	}
 
 	if broadCastTransaction {
