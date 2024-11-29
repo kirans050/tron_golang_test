@@ -35,11 +35,24 @@ type AddressTable struct {
 	Amount           float64  `json:"amount"`
 	TimeStamp        int64    `json:"timestamp"`
 	Token            *string  `json:"token"`
-	OrderId          *float64 `json:"order_id"`
+	OrderID          *float64 `json:"order_id"`
 	CallBack         string   `json:"callback"`
-	ReceivingAddress string   `json:"reciving_address"`
+	ReceivingAddress string   `json:"receiving_address"`
 	Contract         string   `json:"contract"`
 	TrxTimeStamp     int64    `json:"trxTimeStamp"`
+	ReceivingPrivate string   `json:"receiving_private"`
+	CallbackCount    int64    `json:"callBackCount"`
+}
+
+type OrderRequest struct {
+	OrderID          int    `json:"order_id"`
+	Token            string `json:"token"`
+	Amount           int    `json:"amount"`
+	Callback         string `json:"callback"`
+	ReceivingAddress string `json:"receiving_address"`
+	Contract         string `json:"contract"`
+	ReceivingPrivate string `json:"receiving_private"`
+	CallbackCount    int    `json:"callbackcount"`
 }
 
 func generateAddressHandler() (keysStruct, error) {
@@ -76,22 +89,27 @@ func generateAddressHandler() (keysStruct, error) {
 	return keys, nil
 }
 
-func insertTableData(db *sql.DB, keys keysStruct) (sql.Result, error) {
+func insertTableData(db *sql.DB, keys keysStruct, order OrderRequest) (int64, error) {
 	//  Insert some data into the table
-	stmt, err := db.Prepare("INSERT INTO addresses(publicKey, privateKey, address) VALUES(?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO addresses(publicKey, privateKey, address, amount, timestamp, token, order_id, callback, receiving_address, contract, receiving_private, callBackCount) VALUES(?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
-		return nil, err
+		return 0, err
 	}
 	defer stmt.Close()
 
 	//  Insert data
-	result, err := stmt.Exec(keys.PublicKey, keys.PrivateKey, keys.Address)
+	result, err := stmt.Exec(keys.PublicKey, keys.PrivateKey, keys.Address, order.Amount, time.Now().Unix(), order.Token, order.OrderID, order.Callback, order.ReceivingAddress, order.Contract, order.ReceivingPrivate, order.CallbackCount)
 	if err != nil {
 		log.Fatal(err)
-		return nil, err
+		return 0, err
 	}
-	return result, nil
+	insertedID, err := result.LastInsertId()
+	if err != nil {
+		log.Fatal("Failed to get last insert ID:", err)
+		return 0, err
+	}
+	return insertedID, nil
 }
 
 func getTableData(db *sql.DB) ([]AddressTable, error) {
@@ -115,10 +133,13 @@ func getTableData(db *sql.DB) ([]AddressTable, error) {
 			&Address.Amount,
 			&Address.TimeStamp,
 			&Address.Token,
-			&Address.OrderId,
+			&Address.OrderID,
 			&Address.CallBack,
 			&Address.ReceivingAddress,
-			&Address.Contract, &Address.TrxTimeStamp)
+			&Address.Contract,
+			&Address.TrxTimeStamp,
+			&Address.ReceivingPrivate,
+			&Address.CallbackCount)
 		if err != nil {
 			return nil, err
 		}
@@ -145,9 +166,11 @@ func createTable(db *sql.DB) {
 		token TEXT DEFAULT "",
 		order_id INTEGER ,
 		callback TEXT TEXT DEFAULT "",
-		reciving_address TEXT DEFAULT "",
+		receiving_address TEXT DEFAULT "",
 		contract TEXT DEFAULT "",
-		TrxTimeStamp INTEGER DEFAULT 0
+		trxTimeStamp INTEGER DEFAULT 0,
+		receiving_private TEXT DEFAULT "",
+		callBackCount INTEGER DEFAULT 0
  	);`
 	_, err := db.Exec(sqlStmt)
 	if err != nil {
@@ -169,33 +192,44 @@ func helloWorld(w http.ResponseWriter, r *http.Request) {
 
 func generateAddressApi(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var order OrderRequest
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&order)
+		if err != nil {
+			http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+			return
+		}
+
 		keys, err := generateAddressHandler()
 		if err != nil {
 			http.Error(w, "failed to generate keys", http.StatusInternalServerError)
 			return
 		}
-		_, err = insertTableData(db, keys)
+		var row AddressTable
+		insertedID, err := insertTableData(db, keys, order)
 		if err != nil {
 			http.Error(w, "failed to create data", http.StatusInternalServerError)
 			return
 		}
-		responseData := AddressTable{
-			AddressKey:       keys.Address,
-			PublicKey:        keys.PublicKey,
-			PrivateKey:       keys.PrivateKey,
-			Amount:           0,
-			TimeStamp:        time.Now().Unix(),
-			Token:            new(string),
-			OrderId:          new(float64),
-			CallBack:         "",
-			ReceivingAddress: "",
-			Contract:         "",
-			TrxTimeStamp:     0,
+
+		query := `SELECT id, publicKey, privateKey, address, amount, timestamp, token, order_id, callback, receiving_address, contract, receiving_private, callBackCount FROM addresses WHERE id = ?`
+		err = db.QueryRow(query, insertedID).Scan(&row.Id,
+			&row.PublicKey, &row.PrivateKey, &row.AddressKey, &row.Amount, &row.TimeStamp,
+			&row.Token, &row.OrderID, &row.CallBack, &row.ReceivingAddress, &row.Contract,
+			&row.ReceivingPrivate, &row.CallbackCount,
+		)
+		if err != nil {
+			http.Error(w, "Failed to query inserted row", http.StatusInternalServerError)
+			return
 		}
-		*responseData.Token = "" // Dereference and set the value
-		*responseData.OrderId = 0.0
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(responseData)
+		json.NewEncoder(w).Encode(row)
 	}
 }
 
@@ -265,11 +299,8 @@ func clientToMerchant(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
 			http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
 			return
 		}
-		contract := "TY1DBj7Ys1bDcK37kwATaQpHxdTCnYrr1f"
-		merchantAccPrivate := "17c112793ba29f39dc0b6056695746a76f19bd8eb1e695d88d3c2dfdb30edb42"
-		merchantAccAddress := "TWYywngN3EfYiyY2NHzAHi4ad9B1uJNb8Y"
 		for i := 0; i < len(users); i++ {
-			TokenTransfer(db, conn, users[i].AddressKey, contract, merchantAccAddress, users[i].PrivateKey, merchantAccPrivate, users[i].Id)
+			TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id, "generate")
 		}
 
 		w.Header().Set("Content-Type", "application/json")

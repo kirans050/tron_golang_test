@@ -13,7 +13,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string, id int) {
+func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string, id int, serial string) {
+	fmt.Println(serial)
 	balance, err := conn.TRC20ContractBalance(clientAccAddress, contract)
 	if err != nil {
 		fmt.Println("error checking token balance", err)
@@ -126,7 +127,7 @@ func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contra
 		fmt.Println("trx", trxTimeStamp)
 		currentTime := time.Now().Unix()
 		timeDifference := currentTime - trxTimeStamp
-		if timeDifference > 30 {
+		if timeDifference > minSecondsDiff {
 			broadCastTransaction = true
 		}
 	}
@@ -140,7 +141,10 @@ func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contra
 
 		fmt.Println("Transaction broadcasted successfully", broadCastResult, hex.EncodeToString(tx.Txid))
 	}
-
+	fmt.Println("")
+	fmt.Println("")
+	fmt.Println("")
+	fmt.Println("")
 }
 
 func calculateBytes(tx *api.TransactionExtention) (int, error) {
