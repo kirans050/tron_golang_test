@@ -300,7 +300,7 @@ func clientToMerchant(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc {
 			return
 		}
 		for i := 0; i < len(users); i++ {
-			TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id, "generate")
+			TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

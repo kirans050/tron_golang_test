@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	_ "github.com/mattn/go-sqlite3"
@@ -60,48 +59,31 @@ func infinteLoopFirst(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) {
 			fmt.Println("error getting table data", err)
 			return
 		}
+		// even
 		for i := 0; i < len(users); i++ {
-			fmt.Println("---------------")
-			fmt.Println("---------------")
-			fmt.Println("---------------")
-			fmt.Println("")
-			fmt.Println("")
-			fmt.Println("")
-			TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id, "first")
+			if i%2 == 0 {
 
-			fmt.Println("---------------")
-			fmt.Println("---------------")
-			fmt.Println("---------------")
-			fmt.Println("")
-			fmt.Println("")
-			fmt.Println("")
+				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+			}
+
 		}
 	}
 }
 
 func infinteLoopSecond(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) {
 	defer wg.Done()
-	time.Sleep(minSecondsDiff * time.Second)
 	for i := 0; i >= 0; i++ {
 		users, err := getTableData(db)
 		if err != nil {
 			fmt.Println("error getting table data", err)
 			return
 		}
+		// odd
 		for i := 0; i < len(users); i++ {
-			fmt.Println("==============")
-			fmt.Println("==============")
-			fmt.Println("==============")
-			fmt.Println("")
-			fmt.Println("")
-			fmt.Println("")
-			TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id, "second")
-			fmt.Println("==============")
-			fmt.Println("==============")
-			fmt.Println("==============")
-			fmt.Println("")
-			fmt.Println("")
-			fmt.Println("")
+			if i%2 != 0 {
+				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+			}
+
 		}
 	}
 }
