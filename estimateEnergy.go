@@ -31,7 +31,6 @@ func GetAccountResourceHandler(conn *client.GrpcClient, clientAccAddress string)
 	}
 	bandwidthBalance := resource.FreeNetLimit - resource.FreeNetUsed
 	EnergyBalance := resource.EnergyLimit - resource.EnergyUsed
-	fmt.Println("resource", bandwidthBalance, EnergyBalance)
 	return ResourceBalanceStruct{
 		BandwidthBalance: bandwidthBalance,
 		EnergyBalance:    EnergyBalance,
@@ -46,22 +45,6 @@ func EstimateTransactionEnergy(conn *client.GrpcClient, clientAccAddress, contra
 	},{
 		"uint256":"%s"
 	}]`, merchantAccAddress, balance)
-
-	// resourceEstimate, err := conn.EstimateEnergy(
-	// 	clientAccAddress,
-	// 	contract,
-	// 	"transfer(address,uint256)",
-	// 	jsonString,
-	// 	0,
-	// 	"",
-	// 	0,
-	// )
-
-	// if err != nil {
-	// 	fmt.Println("error estimating energy", err)
-	// 	return nil, err
-	// }
-
 	val, err := conn.TriggerConstantContract(clientAccAddress, contract, "transfer(address,uint256)", jsonString)
 	if err != nil {
 		fmt.Println("error triggering contract", err)
@@ -72,7 +55,4 @@ func EstimateTransactionEnergy(conn *client.GrpcClient, clientAccAddress, contra
 		}
 		return val.EnergyUsed, nil
 	}
-
-	// fmt.Println("resource estimate", resourceEstimate)
-	// return resourceEstimate, nil
 }

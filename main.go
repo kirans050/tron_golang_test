@@ -31,17 +31,16 @@ func main() {
 	}
 	defer db.Close()
 	createTable(db)
-
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		http.HandleFunc("/createOrder", generateAddressApi(db))
-		http.HandleFunc("/getAllData", getAllAddressApi(db))
-		http.HandleFunc("/transferToken", transferTokenFromMerchant(db, conn))
-		http.HandleFunc("/activateAccount", activateAccount(db, conn))
-		http.HandleFunc("/clientToMerchant", clientToMerchant(db, conn))
-		http.HandleFunc("/getAllAccountBalance", getAllAccountBalance(db, conn))
+		// http.HandleFunc("/getAllData", getAllAddressApi(db))
+		// http.HandleFunc("/transferToken", transferTokenFromMerchant(db, conn))
+		// http.HandleFunc("/activateAccount", activateAccount(db, conn))
+		// http.HandleFunc("/clientToMerchant", clientToMerchant(db, conn))
+		// http.HandleFunc("/getAllAccountBalance", getAllAccountBalance(db, conn))
 		fmt.Println("HTTP Server running on :8000")
 		if err := http.ListenAndServe(":8000", nil); err != nil {
 			fmt.Println("Error starting server:", err)
@@ -49,9 +48,9 @@ func main() {
 	}()
 
 	// Start the for loops in parallel
-	// wg.Add(2) // Add 3 to the WaitGroup counter
-	// go infinteLoopFirst(db, conn, &wg)
-	// go infinteLoopSecond(db, conn, &wg)
+	wg.Add(2) // Add 3 to the WaitGroup counter
+	go infinteLoopFirst(db, conn, &wg)
+	go infinteLoopSecond(db, conn, &wg)
 	wg.Wait()
 }
 
@@ -63,10 +62,7 @@ func infinteLoopFirst(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) {
 			fmt.Println("error getting table data", err)
 			return
 		}
-		// even
 		for i := 0; i < len(users); i++ {
-			// if i%2 == 0 {
-
 			shouldProcess := false
 			mutex.Lock()
 			if !processedIndices[i] {
@@ -75,10 +71,7 @@ func infinteLoopFirst(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) {
 			}
 			mutex.Unlock()
 			if shouldProcess {
-				if i%2 == 0 {
-					TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
-				}
-
+				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
 				mutex.Lock()
 				delete(processedIndices, i)
 				mutex.Unlock()
@@ -95,10 +88,7 @@ func infinteLoopSecond(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) 
 			fmt.Println("error getting table data", err)
 			return
 		}
-		// odd
 		for i := 0; i < len(users); i++ {
-			// if i%2 != 0 {
-
 			shouldProcess := false
 			mutex.Lock()
 			if !processedIndices[i] {
@@ -107,15 +97,11 @@ func infinteLoopSecond(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) 
 			}
 			mutex.Unlock()
 			if shouldProcess {
-				if i%2 == 0 {
-					TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
-				}
-
+				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
 				mutex.Lock()
 				delete(processedIndices, i)
 				mutex.Unlock()
 			}
-
 		}
 	}
 }
