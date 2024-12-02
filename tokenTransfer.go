@@ -14,6 +14,8 @@ import (
 )
 
 func TokenTransfer(db *sql.DB, conn *client.GrpcClient, clientAccAddress, contract, merchantAccAddress, clientAccPrivate, merchantAccPrivate string, id int) {
+	fmt.Println("id", id)
+	fmt.Println("")
 	balance, err := conn.TRC20ContractBalance(clientAccAddress, contract)
 	if err != nil {
 		fmt.Println("error checking token balance", err)

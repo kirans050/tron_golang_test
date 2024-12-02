@@ -333,7 +333,7 @@ func getAllAccountBalance(db *sql.DB, conn *client.GrpcClient) http.HandlerFunc 
 				trx = trxBalance
 			}
 
-			fmt.Println("balance", users[i].AddressKey, token, "--", trx)
+			fmt.Println("balance", users[i].Id, users[i].AddressKey, token, "--", trx)
 		}
 
 		//  Convert the users slice to JSON

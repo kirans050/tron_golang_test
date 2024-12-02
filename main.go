@@ -14,6 +14,9 @@ import (
 
 const minSecondsDiff = 30
 
+var processedIndices = make(map[int]bool)
+var mutex = &sync.Mutex{}
+
 func main() {
 	conn := client.NewGrpcClient("grpc.nile.trongrid.io:50051")
 	err := conn.Start(grpc.WithInsecure())
@@ -30,6 +33,7 @@ func main() {
 	createTable(db)
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go func() {
 		http.HandleFunc("/createOrder", generateAddressApi(db))
@@ -61,11 +65,24 @@ func infinteLoopFirst(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) {
 		}
 		// even
 		for i := 0; i < len(users); i++ {
-			if i%2 == 0 {
+			// if i%2 == 0 {
 
-				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+			shouldProcess := false
+			mutex.Lock()
+			if !processedIndices[i] {
+				processedIndices[i] = true
+				shouldProcess = true
 			}
+			mutex.Unlock()
+			if shouldProcess {
+				if i%2 == 0 {
+					TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+				}
 
+				mutex.Lock()
+				delete(processedIndices, i)
+				mutex.Unlock()
+			}
 		}
 	}
 }
@@ -80,8 +97,23 @@ func infinteLoopSecond(db *sql.DB, conn *client.GrpcClient, wg *sync.WaitGroup) 
 		}
 		// odd
 		for i := 0; i < len(users); i++ {
-			if i%2 != 0 {
-				TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+			// if i%2 != 0 {
+
+			shouldProcess := false
+			mutex.Lock()
+			if !processedIndices[i] {
+				processedIndices[i] = true
+				shouldProcess = true
+			}
+			mutex.Unlock()
+			if shouldProcess {
+				if i%2 == 0 {
+					TokenTransfer(db, conn, users[i].AddressKey, users[i].Contract, users[i].ReceivingAddress, users[i].PrivateKey, users[i].ReceivingPrivate, users[i].Id)
+				}
+
+				mutex.Lock()
+				delete(processedIndices, i)
+				mutex.Unlock()
 			}
 
 		}
